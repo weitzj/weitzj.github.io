@@ -1,0 +1,453 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Raid on Jan&#39;s braindump</title>
+    <link>https://weitzj.github.io/tags/raid/</link>
+    <description>Recent content in Raid on Jan&#39;s braindump</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Thu, 05 May 2016 15:48:21 +0200</lastBuildDate>
+    <atom:link href="https://weitzj.github.io/tags/raid/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Creating a ZFS zroot Raid 10 on Ubuntu 16.04</title>
+      <link>https://weitzj.github.io/article/creating-a-zfs-zroot-raid-10-on-ubuntu-16.04/</link>
+      <pubDate>Thu, 05 May 2016 15:48:21 +0200</pubDate>
+      
+      <guid>https://weitzj.github.io/article/creating-a-zfs-zroot-raid-10-on-ubuntu-16.04/</guid>
+      <description>
+
+&lt;p&gt;&lt;a href=&#34;https://insights.ubuntu.com/2016/02/16/zfs-is-the-fs-for-containers-in-ubuntu-16-04/&#34;&gt;Ubuntu 16.04 Xenial Xerus&lt;/a&gt;
+is finally out with full ZFS support. So I embarked on a journey to get a
+fileserver up and running with the goal to:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Boot from ZFS&lt;/li&gt;
+&lt;li&gt;Have a Raid 10&lt;/li&gt;
+&lt;li&gt;(Raid 10 is not a requirement for this tutorial to work)&lt;/li&gt;
+&lt;li&gt;Do a fresh Ubuntu installation&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&#34;tl-dr:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;tl;dr&lt;/h3&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Use the &lt;a href=&#34;http://www.ubuntu.com/download/desktop&#34;&gt;Ubuntu Desktop DVD&lt;/a&gt; for the
+installation&lt;/li&gt;
+&lt;li&gt;ZFS UEFI installation does not work in VirtualBox&lt;/li&gt;
+&lt;li&gt;Putting the boot partition inside a zpool does not work. Use a &lt;em&gt;separate&lt;/em&gt; UEFI
+partition for &lt;code&gt;/boot&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Grub2 has to be installed &lt;em&gt;after&lt;/em&gt; the first time you booted your newly installed system&lt;/li&gt;
+&lt;li&gt;Follow &lt;a href=&#34;https://github.com/zfsonlinux/pkg-zfs/wiki/HOWTO-install-Ubuntu-16.04-to-a-Native-ZFS-Root-Filesystem&#34;&gt;this
+tutorial&lt;/a&gt;
+to migrate an existing Ubuntu installation onto ZFS&lt;/li&gt;
+&lt;li&gt;See the links at the end of this tutorial for further help&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h1 id=&#34;setup:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;Setup&lt;/h1&gt;
+
+&lt;h6 id=&#34;overview:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;Overview&lt;/h6&gt;
+
+&lt;p&gt;The general idea is to use the Ubuntu Installer DVD but install Ubuntu by hand,
+since the installer GUI does not handle ZFS, yet. We are using UEFI instead of
+legacy Bios Boot.&lt;/p&gt;
+
+&lt;p&gt;Installing &lt;em&gt;by hand&lt;/em&gt; means, we will manually create a new &lt;em&gt;zpool&lt;/em&gt;, install
+everything inside inside the zpool and &lt;code&gt;chroot&lt;/code&gt; to finish up the installation.&lt;/p&gt;
+
+&lt;p&gt;Installation of the Grub bootloader inside the ZFS zpool does not work during
+chroot. Therefore we need to reboot the system with the Ubuntu Installer DVD,
+boot our installed system and &lt;em&gt;then&lt;/em&gt; install Grub.&lt;/p&gt;
+
+&lt;h3 id=&#34;boot-live-dvd:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;Boot Live DVD&lt;/h3&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;Use the &lt;a href=&#34;http://www.ubuntu.com/download/desktop&#34;&gt;ubuntu-16.04-desktop-amd64.iso&lt;/a&gt;
+since we need to install additional ZFS tools during installation. I am using an
+USB stick, which contains the DVD:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;dd &lt;span style=&#34;color: #6ab825; font-weight: bold&#34;&gt;if&lt;/span&gt;&lt;span style=&#34;color: #d0d0d0&#34;&gt;=&lt;/span&gt;ubuntu-16.04-desktop-amd64.iso &lt;span style=&#34;color: #40ffff&#34;&gt;of&lt;/span&gt;&lt;span style=&#34;color: #d0d0d0&#34;&gt;=&lt;/span&gt;/dev/disk2 &lt;span style=&#34;color: #40ffff&#34;&gt;bs&lt;/span&gt;&lt;span style=&#34;color: #d0d0d0&#34;&gt;=&lt;/span&gt;16m
+&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;Use &lt;em&gt;Try Ubuntu&lt;/em&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;Get a terminal prompt, e.g. &lt;code&gt;&amp;lt;CTRL&amp;gt;&amp;lt;ALT&amp;gt;&amp;lt;F2&amp;gt;&lt;/code&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;Username: &lt;code&gt;ubuntu&lt;/code&gt;, no password&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# become root&lt;/span&gt;
+sudo -i
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# create password for root&lt;/span&gt;
+passwd
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# enable root user login&lt;/span&gt;
+passwd -u root
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&#34;partition-setup:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;Partition Setup&lt;/h3&gt;
+
+&lt;h6 id=&#34;goal:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;Goal&lt;/h6&gt;
+
+&lt;ul&gt;
+&lt;li&gt;We want a Raid10 using 4 drives. So all 4 drives will get the &lt;strong&gt;same
+partition layout&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;Here we are using &lt;code&gt;sda, sdb, sdc, sde&lt;/code&gt; (Be aware: &lt;code&gt;sdd&lt;/code&gt; is the &lt;strong&gt;USB-stick&lt;/strong&gt;)&lt;/li&gt;
+&lt;li&gt;For Grub we need a &lt;strong&gt;separate EFI partition&lt;/strong&gt;. It is not possible to have ZFS
+containing the EFI partition as a dataset.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h6 id=&#34;install-zfs-tools:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;Install ZFS-Tools&lt;/h6&gt;
+
+&lt;p&gt;ZFS is in the Ubuntu kernel, but the tools are not on the DVD. So we need to
+install them first.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# Add zfstools repo&lt;/span&gt;
+&lt;span style=&#34;color: #24909d&#34;&gt;echo&lt;/span&gt; &lt;span style=&#34;color: #ed9d13&#34;&gt;&amp;quot;deb http://archive.ubuntu.com/ubuntu/ xenial universe restricted&lt;/span&gt;
+&lt;span style=&#34;color: #ed9d13&#34;&gt;&amp;quot;&lt;/span&gt; &amp;gt;&amp;gt; /etc/apt/sources.list
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# install tools&lt;/span&gt;
+apt-get update
+apt-get install zfsutils-linux zfs-initramfs
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h6 id=&#34;create-partitions:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;Create partitions&lt;/h6&gt;
+
+&lt;p&gt;Delete any old MBR/GPT partition tables on your harddrives (e.g. &lt;code&gt;mdadm&lt;/code&gt;
+  superblocks), otherwise ZFS might not load your storage pool.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# delete old partition tables&lt;/span&gt;
+sgdisk --zap-all /dev/sda
+sgdisk --zap-all /dev/sdb
+sgdisk --zap-all /dev/sdc
+sgdisk --zap-all /dev/sde
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Create partition table for &lt;code&gt;sda&lt;/code&gt;&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;parted /dev/sda
+mklabel gpt
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# root partition&lt;/span&gt;
+mkpart zfs zfs 0% -512MB
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# boot partition&lt;/span&gt;
+mkpart efi fat32 -512MB 100%
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# mark EFI partition as bootable&lt;/span&gt;
+&lt;span style=&#34;color: #24909d&#34;&gt;set&lt;/span&gt; &lt;span style=&#34;color: #3677a9&#34;&gt;2&lt;/span&gt; boot on
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# quit `parted`&lt;/span&gt;
+quit
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Copy partition table to other drives&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# copy from sda to sdb !&lt;/span&gt;
+sgdisk --replicate&lt;span style=&#34;color: #d0d0d0&#34;&gt;=&lt;/span&gt;/dev/sdb /dev/sda
+sgdisk --replicate&lt;span style=&#34;color: #d0d0d0&#34;&gt;=&lt;/span&gt;/dev/sdc /dev/sda
+sgdisk --replicate&lt;span style=&#34;color: #d0d0d0&#34;&gt;=&lt;/span&gt;/dev/sde /dev/sda
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Since &lt;code&gt;sdb, sdc, sde&lt;/code&gt; are now &lt;strong&gt;identical&lt;/strong&gt; to &lt;code&gt;sda&lt;/code&gt;, we need to generate new
+UUID&amp;rsquo;s for the other drives&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;sgdisk --randomize-guids /dev/sdb
+sgdisk --randomize-guids /dev/sdc
+sgdisk --randomize-guids /dev/sde
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Format EFI partitions&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;mkfs.vfat -F32 /dev/sda2
+mkfs.vfat -F32 /dev/sdb2
+mkfs.vfat -F32 /dev/sdc2
+mkfs.vfat -F32 /dev/sde2
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&#34;create-zpool-and-dataset:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;Create zpool and dataset&lt;/h3&gt;
+
+&lt;p&gt;In the previous step we created 2 partitions on each harddrive. Now we use the
+&lt;strong&gt;first partition of each drive&lt;/strong&gt; to form a new zpool.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# This command should not fail! Otherwise the kernel will refuse to mount&lt;/span&gt;
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# the zpool during boot.&lt;/span&gt;
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# If you have to use &amp;#39;-f&amp;#39;, try to wipe your superblock using:&lt;/span&gt;
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# wipefs --force --all /dev/sda or&lt;/span&gt;
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# sgdisk --zap-all /dev/sda or&lt;/span&gt;
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# mdadm --stop /dev/md1&lt;/span&gt;
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# create the zpool using 2 mirrors. ZFS will stripe the mirrors automatically.&lt;/span&gt;
+zpool create -o &lt;span style=&#34;color: #40ffff&#34;&gt;autoexpand&lt;/span&gt;&lt;span style=&#34;color: #d0d0d0&#34;&gt;=&lt;/span&gt;on -O &lt;span style=&#34;color: #40ffff&#34;&gt;compression&lt;/span&gt;&lt;span style=&#34;color: #d0d0d0&#34;&gt;=&lt;/span&gt;lz4 storage &lt;span style=&#34;color: #ed9d13&#34;&gt;\&lt;/span&gt;
+      mirror sda1 sdb1 &lt;span style=&#34;color: #ed9d13&#34;&gt;\&lt;/span&gt;
+      mirror sdc1 sde1
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# check your harddrive&amp;#39;s block size. For SSD&amp;#39;s it might make sense to use&lt;/span&gt;
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# `zpool create -o ashift=12 ...`&lt;/span&gt;
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# Verify zpool&lt;/span&gt;
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# Should show sda1, sdb1, sdc1, sde1&lt;/span&gt;
+zpool status
+
+  pool: storage
+ state: ONLINE
+  scan: scrub repaired &lt;span style=&#34;color: #3677a9&#34;&gt;0&lt;/span&gt; in 0h0m with &lt;span style=&#34;color: #3677a9&#34;&gt;0&lt;/span&gt; errors on Thu May  &lt;span style=&#34;color: #3677a9&#34;&gt;5&lt;/span&gt; 11:27:31 2016
+config:
+
+        NAME        STATE     READ WRITE CKSUM
+        storage     ONLINE       &lt;span style=&#34;color: #3677a9&#34;&gt;0&lt;/span&gt;     &lt;span style=&#34;color: #3677a9&#34;&gt;0&lt;/span&gt;     0
+          mirror-0  ONLINE       &lt;span style=&#34;color: #3677a9&#34;&gt;0&lt;/span&gt;     &lt;span style=&#34;color: #3677a9&#34;&gt;0&lt;/span&gt;     0
+            sda1    ONLINE       &lt;span style=&#34;color: #3677a9&#34;&gt;0&lt;/span&gt;     &lt;span style=&#34;color: #3677a9&#34;&gt;0&lt;/span&gt;     0
+            sdb1    ONLINE       &lt;span style=&#34;color: #3677a9&#34;&gt;0&lt;/span&gt;     &lt;span style=&#34;color: #3677a9&#34;&gt;0&lt;/span&gt;     0
+          mirror-1  ONLINE       &lt;span style=&#34;color: #3677a9&#34;&gt;0&lt;/span&gt;     &lt;span style=&#34;color: #3677a9&#34;&gt;0&lt;/span&gt;     0
+            sdc1    ONLINE       &lt;span style=&#34;color: #3677a9&#34;&gt;0&lt;/span&gt;     &lt;span style=&#34;color: #3677a9&#34;&gt;0&lt;/span&gt;     0
+            sdd1    ONLINE       &lt;span style=&#34;color: #3677a9&#34;&gt;0&lt;/span&gt;     &lt;span style=&#34;color: #3677a9&#34;&gt;0&lt;/span&gt;     0
+
+errors: No known data errors
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Export zpool and reimport &lt;code&gt;by-id&lt;/code&gt;&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;zpool &lt;span style=&#34;color: #24909d&#34;&gt;export&lt;/span&gt; storage
+zpool import -d /dev/disk/by-id storage
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# Should show disk ids&lt;/span&gt;
+zpool status
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Create ZFS datasets&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;zfs create storage/ROOT
+zfs create storage/ROOT/ubuntu-1
+zfs create storage/HOME
+zfs create storage/HOME/home-1
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# Update mountpoints. Ignore warnings.&lt;/span&gt;
+zfs &lt;span style=&#34;color: #24909d&#34;&gt;set&lt;/span&gt; &lt;span style=&#34;color: #40ffff&#34;&gt;mountpoint&lt;/span&gt;&lt;span style=&#34;color: #d0d0d0&#34;&gt;=&lt;/span&gt;none storage
+zfs &lt;span style=&#34;color: #24909d&#34;&gt;set&lt;/span&gt; &lt;span style=&#34;color: #40ffff&#34;&gt;mountpoint&lt;/span&gt;&lt;span style=&#34;color: #d0d0d0&#34;&gt;=&lt;/span&gt;none storage/ROOT
+zfs &lt;span style=&#34;color: #24909d&#34;&gt;set&lt;/span&gt; &lt;span style=&#34;color: #40ffff&#34;&gt;mountpoint&lt;/span&gt;&lt;span style=&#34;color: #d0d0d0&#34;&gt;=&lt;/span&gt;none storage/HOME
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# mountpoint for `/`. Will later be set by Grub&lt;/span&gt;
+zfs &lt;span style=&#34;color: #24909d&#34;&gt;set&lt;/span&gt; &lt;span style=&#34;color: #40ffff&#34;&gt;mountpoint&lt;/span&gt;&lt;span style=&#34;color: #d0d0d0&#34;&gt;=&lt;/span&gt;/ storage/ROOT/ubuntu-1
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# we need to use legacy mount points, since `mountall` does not&lt;/span&gt;
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# work with systemd (Ubuntu 16.04), yet.&lt;/span&gt;
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# legacy mountpoints means, we have to modify /etc/fstab later on&lt;/span&gt;
+zfs &lt;span style=&#34;color: #24909d&#34;&gt;set&lt;/span&gt; &lt;span style=&#34;color: #40ffff&#34;&gt;mountpoint&lt;/span&gt;&lt;span style=&#34;color: #d0d0d0&#34;&gt;=&lt;/span&gt;legacy storage/HOME/home-1
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&#34;install-ubuntu-in-zfs-root-using-chroot:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;Install Ubuntu in ZFS-ROOT using &lt;code&gt;chroot&lt;/code&gt;&lt;/h3&gt;
+
+&lt;h6 id=&#34;goal-1:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;Goal&lt;/h6&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Install Ubuntu into ZFS-ROOT which we created in the last part&lt;/li&gt;
+&lt;li&gt;Boot again from USB-Stick and boot the installed system&lt;/li&gt;
+&lt;li&gt;Install Grub&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h6 id=&#34;prepare-chroot:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;Prepare chroot&lt;/h6&gt;
+
+&lt;p&gt;By default ZFS will mount to &lt;code&gt;/storage&lt;/code&gt;. We want it
+to be under &lt;code&gt;/mnt&lt;/code&gt;. So we need to unmount zpool and reimport.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;zfs umount -a
+zpool &lt;span style=&#34;color: #24909d&#34;&gt;export&lt;/span&gt; storage
+zpool import -d /dev/disk/by-id -R /mnt storage
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Check mount points&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;mount
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# should look like&lt;/span&gt;
+storage/ROOT/ubuntu-1 on /mnt &lt;span style=&#34;color: #24909d&#34;&gt;type&lt;/span&gt; zfs &lt;span style=&#34;color: #d0d0d0&#34;&gt;(&lt;/span&gt;rw,relatime,xattr,noacl&lt;span style=&#34;color: #d0d0d0&#34;&gt;)&lt;/span&gt;
+storage/HOME/home-1 on /mnt/home &lt;span style=&#34;color: #24909d&#34;&gt;type&lt;/span&gt; zfs &lt;span style=&#34;color: #d0d0d0&#34;&gt;(&lt;/span&gt;rw,relatime,xattr,noacl&lt;span style=&#34;color: #d0d0d0&#34;&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Create &lt;code&gt;boot&lt;/code&gt; mountpoint for &lt;code&gt;sda2&lt;/code&gt; (We are installing Grub only on sda2)&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;mkdir -p /mnt/boot/efi
+mount /dev/sda2 /mnt/boot/efi
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Install Ubuntu in ZFS-ROOT&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# install ubuntu&lt;/span&gt;
+unsquashfs -f -d /mnt/ /media/cdrom/casper/filesystem.squashfs
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# setup networking&lt;/span&gt;
+cp /run/resolvconf/resolv.conf /mnt/run/resolvconf/resolv.conf
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# copy kernel&lt;/span&gt;
+cp /media/cdrom/casper/vmlinuz.efi /mnt/boot/vmlinuz-&lt;span style=&#34;color: #ed9d13&#34;&gt;`&lt;/span&gt;uname -r&lt;span style=&#34;color: #ed9d13&#34;&gt;`&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&#34;chroot:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;chroot&lt;/h3&gt;
+
+&lt;p&gt;Chroot into ZFS-ROOT&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #24909d&#34;&gt;cd&lt;/span&gt; /
+&lt;span style=&#34;color: #6ab825; font-weight: bold&#34;&gt;for&lt;/span&gt; i in /dev /dev/pts /proc /sys&lt;span style=&#34;color: #d0d0d0&#34;&gt;;&lt;/span&gt; &lt;span style=&#34;color: #6ab825; font-weight: bold&#34;&gt;do&lt;/span&gt; mount -B &lt;span style=&#34;color: #40ffff&#34;&gt;$i&lt;/span&gt; /mnt&lt;span style=&#34;color: #40ffff&#34;&gt;$i&lt;/span&gt;&lt;span style=&#34;color: #d0d0d0&#34;&gt;;&lt;/span&gt; &lt;span style=&#34;color: #6ab825; font-weight: bold&#34;&gt;done&lt;/span&gt;
+chroot /mnt /bin/bash --login
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Install &lt;code&gt;zfsutils&lt;/code&gt; in chroot&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# Add zfstools repo&lt;/span&gt;
+&lt;span style=&#34;color: #24909d&#34;&gt;echo&lt;/span&gt; &lt;span style=&#34;color: #ed9d13&#34;&gt;&amp;quot;deb http://archive.ubuntu.com/ubuntu/ xenial universe restricted&lt;/span&gt;
+&lt;span style=&#34;color: #ed9d13&#34;&gt;&amp;quot;&lt;/span&gt; &amp;gt;&amp;gt; /etc/apt/sources.list
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# install tools&lt;/span&gt;
+apt-get update
+apt-get install zfsutils-linux zfs-initramfs
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Get UUID of &lt;code&gt;/boot&lt;/code&gt; harddrive, &lt;code&gt;sda2&lt;/code&gt;&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# get UUID for sda2&lt;/span&gt;
+ls -la /dev/disk/by-uuid &lt;span style=&#34;color: #d0d0d0&#34;&gt;|&lt;/span&gt; grep sda &lt;span style=&#34;color: #d0d0d0&#34;&gt;|&lt;/span&gt; awk &lt;span style=&#34;color: #ed9d13&#34;&gt;&amp;#39;{print $9}&amp;#39;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Edit &lt;code&gt;/etc/fstab&lt;/code&gt; and add &lt;code&gt;/boot&lt;/code&gt; and &lt;code&gt;/home&lt;/code&gt; mountpoints&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# Add the UUID from the last step&lt;/span&gt;
+&lt;span style=&#34;color: #40ffff&#34;&gt;UUID&lt;/span&gt;&lt;span style=&#34;color: #d0d0d0&#34;&gt;=&lt;/span&gt;9383-EFFA  /boot/efi       vfat    &lt;span style=&#34;color: #40ffff&#34;&gt;umask&lt;/span&gt;&lt;span style=&#34;color: #d0d0d0&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color: #3677a9&#34;&gt;0077&lt;/span&gt;      &lt;span style=&#34;color: #3677a9&#34;&gt;0&lt;/span&gt;       1
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# Add `legacy` zfs volumes&lt;/span&gt;
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# DO NOT USE A PREFIX SLASH!&lt;/span&gt;
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# zfs set mountpoint=legacy storage/HOME/home-1&lt;/span&gt;
+storage/HOME/home-1 /home zfs defaults    &lt;span style=&#34;color: #3677a9&#34;&gt;0&lt;/span&gt;       0
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h6 id=&#34;execute-normal-ubuntu-setup:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;Execute normal Ubuntu setup&lt;/h6&gt;
+
+&lt;p&gt;Add user&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #24909d&#34;&gt;cd&lt;/span&gt; /usr/lib/ubiquity/user-setup
+./user-setup-ask
+./user-setup-apply
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Set timezone&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #24909d&#34;&gt;cd&lt;/span&gt; /usr/lib/ubiquity/tzsetup
+./tzsetup
+./post-base-installer
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Setup language&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #24909d&#34;&gt;cd&lt;/span&gt; /usr/lib/ubiquity/localechooser
+./locale-chooser
+./post-base-installer
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Enable root user&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# create root password&lt;/span&gt;
+passwd
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# enable root login&lt;/span&gt;
+passwd -u root
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Install packages&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;apt-get install grub-efi-amd64 openssh-server
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Since we want to use the zpool using &lt;code&gt;disk/by-id&lt;/code&gt; instead of &lt;code&gt;sda1, sdb1,...&lt;/code&gt;
+but zfs &amp;lsquo;forgets&amp;rsquo; this, we need to add an udev rule to &lt;code&gt;/etc/udev/rules.d/60-zpool.rules&lt;/code&gt;&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# This creates symlinks directly in /dev with the same names as those in&lt;/span&gt;
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# /dev/disk/by-id, but only for ZFS partitions.  This is necessary for GRUB to&lt;/span&gt;
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# locate the partitions using the output of `zpool status`.&lt;/span&gt;
+&lt;span style=&#34;color: #40ffff&#34;&gt;KERNEL&lt;/span&gt;&lt;span style=&#34;color: #d0d0d0&#34;&gt;==&lt;/span&gt;&lt;span style=&#34;color: #ed9d13&#34;&gt;&amp;quot;sd*[0-9]&amp;quot;&lt;/span&gt;, IMPORT&lt;span style=&#34;color: #d0d0d0&#34;&gt;{&lt;/span&gt;parent&lt;span style=&#34;color: #d0d0d0&#34;&gt;}==&lt;/span&gt;&lt;span style=&#34;color: #ed9d13&#34;&gt;&amp;quot;ID_*&amp;quot;&lt;/span&gt;, ENV&lt;span style=&#34;color: #d0d0d0&#34;&gt;{&lt;/span&gt;ID_PART_ENTRY_SCHEME&lt;span style=&#34;color: #d0d0d0&#34;&gt;}==&lt;/span&gt;&lt;span style=&#34;color: #ed9d13&#34;&gt;&amp;quot;gpt&amp;quot;&lt;/span&gt;, ENV&lt;span style=&#34;color: #d0d0d0&#34;&gt;{&lt;/span&gt;ID_PART_ENTRY_TYPE&lt;span style=&#34;color: #d0d0d0&#34;&gt;}==&lt;/span&gt;&lt;span style=&#34;color: #ed9d13&#34;&gt;&amp;quot;6a898cc3-1dd2-11b2-99a6-080020736631&amp;quot;&lt;/span&gt;, SYMLINK+&lt;span style=&#34;color: #d0d0d0&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color: #ed9d13&#34;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&#34;color: #40ffff&#34;&gt;$env&lt;/span&gt;&lt;span style=&#34;color: #ed9d13&#34;&gt;{ID_BUS}-&lt;/span&gt;&lt;span style=&#34;color: #40ffff&#34;&gt;$env&lt;/span&gt;&lt;span style=&#34;color: #ed9d13&#34;&gt;{ID_SERIAL}-part%n&amp;quot;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Setup hostname in &lt;code&gt;/etc/hostname&lt;/code&gt;&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #24909d&#34;&gt;echo&lt;/span&gt; &lt;span style=&#34;color: #ed9d13&#34;&gt;&amp;#39;myhostname&amp;#39;&lt;/span&gt; &amp;gt; /etc/hostname
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Grub will be installed later after reboot, since the &lt;code&gt;zpool&lt;/code&gt; command inside the
+chroot does not work with the mounted &lt;code&gt;/dev/zfs&lt;/code&gt; device.&lt;/p&gt;
+
+&lt;h3 id=&#34;leave-chroot-prepare-reboot:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;Leave chroot/prepare reboot&lt;/h3&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #24909d&#34;&gt;exit&lt;/span&gt;
+&lt;span style=&#34;color: #24909d&#34;&gt;cd&lt;/span&gt; /
+umount /mnt/dev/pts
+umount /mnt/dev
+umount /mnt/proc
+umount /mnt/sys
+umount /mnt/home
+umount /mnt/boot/efi
+zfs umount -a
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# very important!&lt;/span&gt;
+zpool &lt;span style=&#34;color: #24909d&#34;&gt;export&lt;/span&gt; -a
+
+reboot &lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# and launch from USB-stick bootloader again&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&#34;reboot-and-grub-install:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;Reboot and Grub install&lt;/h3&gt;
+
+&lt;h6 id=&#34;status:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;Status&lt;/h6&gt;
+
+&lt;ul&gt;
+&lt;li&gt;You should have installed Ubuntu into a zpool named &lt;code&gt;storage&lt;/code&gt; using a dataset
+&lt;code&gt;storage/ROOT/ubuntu-1&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;The partition layout of &lt;code&gt;sda&lt;/code&gt; contains 2 partitions, &lt;code&gt;/dev/sda1&lt;/code&gt;, which is
+part of the zpool and an empty formatted EFI partition &lt;code&gt;/dev/sda2&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;You rebooted the Live DVD and are in the Grub boot menu&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h6 id=&#34;boot-installed-system-manually-from-live-dvd-grub:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;Boot installed system manually from Live DVD Grub&lt;/h6&gt;
+
+&lt;p&gt;Enter command mode&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;c
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;List all devices&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;ls
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# Should give you a list like:&lt;/span&gt;
+&lt;span style=&#34;color: #d0d0d0&#34;&gt;(&lt;/span&gt;hd0&lt;span style=&#34;color: #d0d0d0&#34;&gt;)&lt;/span&gt; &lt;span style=&#34;color: #d0d0d0&#34;&gt;==&lt;/span&gt; The USB-stick, which you loaded
+&lt;span style=&#34;color: #d0d0d0&#34;&gt;(&lt;/span&gt;hd1&lt;span style=&#34;color: #d0d0d0&#34;&gt;)&lt;/span&gt; &lt;span style=&#34;color: #d0d0d0&#34;&gt;==&lt;/span&gt; /dev/sda
+&lt;span style=&#34;color: #d0d0d0&#34;&gt;(&lt;/span&gt;hd1, gpt1&lt;span style=&#34;color: #d0d0d0&#34;&gt;)&lt;/span&gt; &lt;span style=&#34;color: #d0d0d0&#34;&gt;==&lt;/span&gt; /dev/sda1
+&lt;span style=&#34;color: #d0d0d0&#34;&gt;(&lt;/span&gt;hd1, gpt2&lt;span style=&#34;color: #d0d0d0&#34;&gt;)&lt;/span&gt; &lt;span style=&#34;color: #d0d0d0&#34;&gt;==&lt;/span&gt; /dev/sda2
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Boot zpool/ROOT/ubuntu-1&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# load zfs module&lt;/span&gt;
+insmod zfs
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# Specify ZFS root, e.g. /dev/sda1&lt;/span&gt;
+&lt;span style=&#34;color: #40ffff&#34;&gt;root&lt;/span&gt;&lt;span style=&#34;color: #d0d0d0&#34;&gt;=(&lt;/span&gt;hd1,gpt1&lt;span style=&#34;color: #d0d0d0&#34;&gt;)&lt;/span&gt;
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# load kernel [...] is a tab keypress. You should have tab-completion.&lt;/span&gt;
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# If tab completion does not work, check if `root=(hd1,gpt1)` is correct&lt;/span&gt;
+linux /ROOT/.../.../.../boot/vmlinuz... &lt;span style=&#34;color: #40ffff&#34;&gt;root&lt;/span&gt;&lt;span style=&#34;color: #d0d0d0&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color: #40ffff&#34;&gt;ZFS&lt;/span&gt;&lt;span style=&#34;color: #d0d0d0&#34;&gt;=&lt;/span&gt;storage/ROOT/ubuntu-1 ro
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# e.g.&lt;/span&gt;
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# linux /ROOT/ubuntu-1/@/boot/vmlinuz-4.4.0-generic root=ZFS=storage/ROOT/ubuntu-1 ro&lt;/span&gt;
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# load initrd [...] is a tab keypress. You should have tab-completion&lt;/span&gt;
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# If tab completion does not work, check if `root=(hd1,gpt1)` is correct&lt;/span&gt;
+initrd /ROOT/.../.../.../boot/initrd...
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# e.g&lt;/span&gt;
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# initrd /ROOT/ubuntu-1/@/boot/initrd.img-4.4.0-21-generic&lt;/span&gt;
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# boot the system&lt;/span&gt;
+boot
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Install grub from booted system&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #202020&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# login as root&lt;/span&gt;
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# verify `mount` has mounted /dev/sda2 as /boot/efi&lt;/span&gt;
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# verify `mount` has mounted storage/HOME/home-1 as /home&lt;/span&gt;
+mount
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# install Grub&lt;/span&gt;
+&lt;span style=&#34;color: #24909d&#34;&gt;cd&lt;/span&gt; /
+grub-install
+
+&lt;span style=&#34;color: #999999; font-style: italic&#34;&gt;# reboot without USB-stick&lt;/span&gt;
+reboot
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h2 id=&#34;you-are-done:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;You are done 🎉!&lt;/h2&gt;
+
+&lt;p&gt;Further steps, which you might want to look at:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Install Grub on &lt;code&gt;/dev/sdb2&lt;/code&gt;, &lt;code&gt;/dev/sdc2&lt;/code&gt;&amp;hellip; as well&lt;/li&gt;
+&lt;li&gt;Install Grub on an USB-stick&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&#34;links-on-which-this-tutorial-is-based-upon:bd66452765a9bb2909ee8c8d9c1becbb&#34;&gt;Links on which this tutorial is based upon:&lt;/h3&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/zfsonlinux/pkg-zfs/wiki/HOWTO-install-Ubuntu-16.04-to-a-Native-ZFS-Root-Filesystem&#34;&gt;https://github.com/zfsonlinux/pkg-zfs/wiki/HOWTO-install-Ubuntu-16.04-to-a-Native-ZFS-Root-Filesystem&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/glasen/zfs_root_german/blob/master/zfs_neuinstallation.md&#34;&gt;https://github.com/glasen/zfs_root_german/blob/master/zfs_neuinstallation.md&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

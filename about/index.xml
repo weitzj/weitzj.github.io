@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Abouts on Jan&#39;s braindump</title>
+    <link>https://weitzj.github.io/about/</link>
+    <description>Recent content in Abouts on Jan&#39;s braindump</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Thu, 05 May 2016 23:55:05 +0200</lastBuildDate>
+    <atom:link href="https://weitzj.github.io/about/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>about</title>
+      <link>https://weitzj.github.io/about/</link>
+      <pubDate>Thu, 05 May 2016 23:55:05 +0200</pubDate>
+      
+      <guid>https://weitzj.github.io/about/</guid>
+      <description>&lt;p&gt;Developer and engineer. Obsessed with knowledge and interested in new tools.&lt;/p&gt;
+
+&lt;p&gt;Works @ &lt;a href=&#34;https://iosphere.de&#34;&gt;iosphere GmbH&lt;/a&gt; as a full-stack-developer.&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Building Android and iOS Apps&lt;/li&gt;
+&lt;li&gt;Designing and implementing REST-Apis using Golang, Java and Groovy&lt;/li&gt;
+&lt;li&gt;Improving our continuous deployment pipeline using
+&lt;a href=&#34;https://jenkins.io&#34;&gt;Jenkins&lt;/a&gt;, &lt;a href=&#34;https://docker.io&#34;&gt;Docker&lt;/a&gt; the
+&lt;a href=&#34;https://www.hashicorp.com&#34;&gt;Hasicorp Stack&lt;/a&gt; and &lt;a href=&#34;https://puppet.com&#34;&gt;Puppet&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Studied Physics at the University of Cologne (Diploma in Theoretical Physics)&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>
