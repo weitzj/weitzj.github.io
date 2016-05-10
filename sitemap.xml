@@ -2,18 +2,18 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
-    <loc>https://weitzj.github.io/</loc>
+    <loc>http://janweitz.de/</loc>
     <lastmod>2016-05-05T23:55:05+02:00</lastmod>
     <priority>0</priority>
   </url>
   
   <url>
-    <loc>https://weitzj.github.io/about/</loc>
+    <loc>http://janweitz.de/about/</loc>
     <lastmod>2016-05-05T23:55:05+02:00</lastmod>
   </url>
   
   <url>
-    <loc>https://weitzj.github.io/article/creating-a-zfs-zroot-raid-10-on-ubuntu-16.04/</loc>
+    <loc>http://janweitz.de/article/creating-a-zfs-zroot-raid-10-on-ubuntu-16.04/</loc>
     <lastmod>2016-05-05T15:48:21+02:00</lastmod>
   </url>
   
