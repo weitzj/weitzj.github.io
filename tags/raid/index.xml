@@ -2,19 +2,19 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Raid on Jan&#39;s braindump</title>
-    <link>/tags/raid/</link>
+    <link>https://janweitz.de/tags/raid/</link>
     <description>Recent content in Raid on Jan&#39;s braindump</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <lastBuildDate>Thu, 05 May 2016 15:48:21 +0200</lastBuildDate>
-    <atom:link href="/tags/raid/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="https://janweitz.de/tags/raid/index.xml" rel="self" type="application/rss+xml" />
     
     <item>
       <title>Creating a ZFS zroot Raid 10 on Ubuntu 16.04</title>
-      <link>/article/creating-a-zfs-zroot-raid-10-on-ubuntu-16.04/</link>
+      <link>https://janweitz.de/article/creating-a-zfs-zroot-raid-10-on-ubuntu-16.04/</link>
       <pubDate>Thu, 05 May 2016 15:48:21 +0200</pubDate>
       
-      <guid>/article/creating-a-zfs-zroot-raid-10-on-ubuntu-16.04/</guid>
+      <guid>https://janweitz.de/article/creating-a-zfs-zroot-raid-10-on-ubuntu-16.04/</guid>
       <description>
 
 &lt;p&gt;&lt;a href=&#34;https://insights.ubuntu.com/2016/02/16/zfs-is-the-fs-for-containers-in-ubuntu-16-04/&#34;&gt;Ubuntu 16.04 Xenial Xerus&lt;/a&gt;
